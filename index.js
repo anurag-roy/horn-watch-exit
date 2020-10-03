@@ -23,7 +23,7 @@ app.use(express.static(path.join(__dirname, "build")));
 app.use("/mapper", mapperRouter);
 
 app.post("/watchHornExit", ({ body }, response) => {
-  watchHornExit(body.stockA, body.stockB, body.stockC, body.stockC, body.exitPrice);
+  watchHornExit(body.stockA, body.stockB, body.stockC, body.stockD, body.exitPrice);
   response.send("Check console.");
 });
 
