@@ -23,7 +23,7 @@ app.use(express.static(path.join(__dirname, "build")));
 app.use("/mapper", mapperRouter);
 
 app.post("/watchHornExit", ({ body }, response) => {
-  watchHornExit(body.stockA, body.stockB, body.stockC, body.stockD, body.exitPrice);
+  watchHornExit(body.stockA, body.stockB, body.stockC, body.stockD, Number(body.exitPrice));
   response.send("Check console.");
 });
 
@@ -59,7 +59,7 @@ const watchHornExit = (stockA, stockB, stockC, stockD, exitPrice) => {
     const net = (a + b + c + d) / 75;
 
     if (net > exitPrice) {
-      console.log(`Net: ${net}, Exit Price: ${exitPrice}. Condition satisfied.`);
+      console.log(`Net: ${net}, Exit Price: ${exitPrice}. Condition satisfied. Would have exited.`);
       return true;
     }
 

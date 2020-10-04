@@ -3,7 +3,7 @@ const mapperRouter = require("express").Router();
 
 const instruments = JSON.parse(fs.readFileSync("./instruments.json"));
 
-mapperRouter.get("/names", (request, response) => {
+mapperRouter.get("/names", (_, response) => {
   const nameSet = new Set();
   instruments.forEach((i) => {
     if (i.name && i.instrument_type !== "FUT") {
