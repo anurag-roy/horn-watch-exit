@@ -22,7 +22,17 @@ app.use(express.static(path.join(__dirname, "build")));
 
 app.use("/mapper", mapperRouter);
 
+// Order function
+const order = (stock, price) => {
+  const timestamp = new Date();
+  console.log(
+    `Order placed for ${stock.exchange}:${stock.tradingsymbol}, Transaction: ${stock.transactionType}, product: ${stock.product}, quantity: ${stock.quantity}, price: ${price}`,
+  );
+  console.log(`Time of order: ${timestamp.toUTCString()}`);
+};
+
 app.post("/watchHornExit", ({ body }, response) => {
+  console.log();
   watchHornExit(body.stockA, body.stockB, body.stockC, body.stockD, Number(body.exitPrice));
   response.send("Check console.");
 });
@@ -41,13 +51,16 @@ const watchHornExit = (stockA, stockB, stockC, stockD, exitPrice) => {
   const dQty = stockD.quantity;
 
   // Extract position values for each stock
-  const aPv = stockA.postionValue;
-  const bPv = stockB.postionValue;
-  const cPv = stockC.postionValue;
-  const dPv = stockD.postionValue;
+  const aPv = stockA.positionValue;
+  const bPv = stockB.positionValue;
+  const cPv = stockC.positionValue;
+  const dPv = stockD.positionValue;
 
   // Declare variables which will be updated on each tick
   let aSellersBid, bBuyersBid, cBuyersBid, dSellersBid;
+
+  // Flag to determine if order is already placed or not
+  let placedOrder = false;
 
   // Exit Condition for HORN strategy
   const lookForExit = () => {
@@ -72,6 +85,8 @@ const watchHornExit = (stockA, stockB, stockC, stockD, exitPrice) => {
     access_token: accessToken,
   });
 
+  ticker.connect();
+
   ticker.on("connect", () => {
     console.log("Subscribing to stocks...");
     const items = [aToken, bToken, cToken, dToken];
@@ -80,39 +95,49 @@ const watchHornExit = (stockA, stockB, stockC, stockD, exitPrice) => {
   });
 
   ticker.on("ticks", (ticks) => {
-    // Check tick and update corresponding stock bid price
-    // 1st Seller's Bud for stock to BUY
-    // 2nd Buyer's Bid for stock to SELL
-    ticks.forEach((t) => {
-      if (t.instrument_token == aToken) {
-        if (t.depth) {
-          if (t.depth.sell) {
-            aSellersBid = t.depth.sell[0].price;
+    if (!placedOrder) {
+      // Check tick and update corresponding stock bid price
+      // 1st Seller's Bud for stock to BUY
+      // 2nd Buyer's Bid for stock to SELL
+      ticks.forEach((t) => {
+        if (t.instrument_token == aToken) {
+          if (t.depth) {
+            if (t.depth.sell) {
+              aSellersBid = t.depth.sell[0].price;
+            }
+          }
+        } else if (t.instrument_token == bToken) {
+          if (t.depth) {
+            if (t.depth.buy) {
+              bBuyersBid = t.depth.buy[1].price;
+            }
+          }
+        } else if (t.instrument_token == cToken) {
+          if (t.depth) {
+            if (t.depth.buy) {
+              cBuyersBid = t.depth.buy[1].price;
+            }
+          }
+        } else if (t.instrument_token == dToken) {
+          if (t.depth) {
+            if (t.depth.sell) {
+              dSellersBid = t.depth.sell[0].price;
+            }
           }
         }
-      } else if (t.instrument_token == bToken) {
-        if (t.depth) {
-          if (t.depth.buy) {
-            bBuyersBid = t.depth.buy[1].price;
-          }
-        }
-      } else if (t.instrument_token == cToken) {
-        if (t.depth) {
-          if (t.depth.buy) {
-            cBuyersBid = t.depth.buy[1].price;
-          }
-        }
-      } else if (t.instrument_token == dToken) {
-        if (t.depth) {
-          if (t.depth.sell) {
-            dSellersBid = t.depth.sell[0].price;
-          }
-        }
-      }
-    });
+      });
 
-    // Look for Exit
-    lookForExit();
+      // Look for Exit
+      if (lookForExit()) {
+        placedOrder = true;
+        order(stockA, aSellersBid);
+        order(stockB, bBuyersBid);
+        order(stockC, cBuyersBid);
+        order(stockD, dSellersBid);
+      }
+    } else if (placedOrder) {
+      ticker.disconnect();
+    }
   });
 };
 
